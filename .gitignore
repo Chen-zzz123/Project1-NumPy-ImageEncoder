@@ -1,9 +1,12 @@
-# Course-supplied large files: do NOT commit (see README section 5)
+# Course-supplied attachments: keep the repository small.
+# Re-download them from the course package to reproduce (see README section 1).
+assets/
+weights/
+lecture-demos/
+practice/
+
+# Large binaries inside those folders (defensive, in case folders are re-added)
 weights/*.npz
-assets/reference_outputs.npz
-assets/images/*.jpg
-assets/images/*.png
-assets/images/*.jpeg
 
 # Generated outputs
 output_tokens.npz
