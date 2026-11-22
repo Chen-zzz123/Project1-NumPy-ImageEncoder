@@ -87,9 +87,10 @@ python check.py --stage batch        # 打乱顺序 / 重复图片
 | `image_encoder.py` | **本人完成的实现**（唯一修改的源文件） |
 | `README.md` | 本文件（复现说明） |
 | `README-course.md` | 课程原版 README 备份（未改动） |
-| `report/实验报告.pdf` | **实验报告成品 PDF**（封面 + 3 页正文，实测共 4 页，符合 <5 页要求） |
+| `report/实验报告-SZU模板版.pdf` | **主报告 PDF：深大官方模板版**（XeLaTeX 实测编译通过；封面 1 + 正文 3 + 批阅页 1，正文 <5 页达标） |
+| `report/实验报告.pdf` | 备用报告 PDF（自定义版式，封面 + 3 页正文，实测共 4 页） |
 | `report/实验报告.html` | 实验报告网页版（浏览器打开后 Ctrl+P 可再存成 PDF） |
-| `report/overleaf/` | **基于深大官方模板的 Overleaf 版**（`main.tex` + `figs/`；模板来源见该目录 README） |
+| `report/overleaf/` | **基于深大官方模板的 Overleaf 版**（`main.tex` + `figs/`；已在本地 MiKTeX XeLaTeX 实测编译通过，模板来源见该目录 README） |
 | `report/report.tex` | 自建 LaTeX 版（XeLaTeX + ctex + TikZ），作为 Overleaf 模板版的备选 |
 | `report/实验报告.md` | 报告纯文本版，便于复制修改 |
 | `report/figures/architecture.svg` | 架构插图（HTML / Markdown 引用） |

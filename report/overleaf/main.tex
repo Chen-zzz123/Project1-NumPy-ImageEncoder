@@ -120,7 +120,8 @@ ViT 的思路是``把图片当句子''：先把 $224\times224$ 图片切成 $7\t
 \section{Implementations}
 
 \begin{table}[H]
-\centering\small
+\centering
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{@{}l l l@{}}
 \toprule
 TODO & 关键操作 & 形状变化\\
@@ -132,7 +133,8 @@ TODO & 关键操作 & 形状变化\\
 05 \code{embed} & \code{patches @ W.T} + 拼 CLS + \code{+ position} & \code{[B,49,3072]} $\to$ \code{[B,50,768]}\\
 06 \code{\_\_call\_\_} & 取 CLS $\to$ \code{post\_norm} $\to$ \code{@ proj} $\to$ \code{unit\_vector} & \code{[B,50,768]} $\to$ \code{[B,512]}\\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \hl{分头时采用 \code{reshape(B,N,12,64)} 而非按头分块后再排}，因为 PyTorch 的 \code{in\_proj\_weight} 按``头是外层循环''的顺序拼接，该顺序由 \code{block0} 阶段独立验证。代码内每个 TODO 均附逐步形状注释，可对照 \code{PPT-CODE-MAP.txt} 的幻灯片 39--70 页阅读。
@@ -166,10 +168,11 @@ last\_tokens & (2,50,768)     & 4.768e-05 & 2.696e-06 & 2e-4 / 2e-4 & PASS\\
 
 \textbf{一次形状变换：patchify 的 6 维轴重排。} 输入 \code{[B,3,224,224]} 要得到 \code{[B,49,3072]}，图块须``从左到右、再从上到下''排列，块内按 \code{C,H,W} 摊平。先把 224 拆成``7 个块 $\times$ 块内 32 像素''：
 \begin{verbatim}
-images.reshape(B, 3, 7, 32, 7, 32)      # B,C,row-block,row-in,col-block,col-in
-      .transpose(0, 2, 4, 1, 3, 5)     # B,row-block,col-block,C,row-in,col-in
-      .reshape(B, 49, 3072)            # 49 = 7*7; 3072 = 3*32*32
+images.reshape(B, 3, 7, 32, 7, 32)
+      .transpose(0, 2, 4, 1, 3, 5)
+      .reshape(B, 49, 3072)
 \end{verbatim}
+拆出的 6 个轴依次为 \code{B,C,行块号,行内像素,列块号,列内像素}。
 \code{transpose(0,2,4,1,3,5)} 把行/列块号提到最前，保证 \code{(row,col)} 行优先；把 \code{C,行内,列内} 留在最后，保证摊平顺序 \code{C$\to$H$\to$W}。若误写成 \code{(0,3,5,1,2,4)}，图块顺序变为列优先，\code{patches} 阶段会立刻 FAIL。\hl{\code{reshape} 只按内存顺序重新分组、不改变元素相对次序，只有 \code{transpose} 能真正交换轴}。
 
 \textbf{一个真实修复的 bug。} 实现 TODO-03a 时沿用课堂 2D 算例的写法 \code{scores = (q @ k.T) / scale}，运行 \code{--stage block0} 报：
