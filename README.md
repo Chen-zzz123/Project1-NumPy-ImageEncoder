@@ -97,32 +97,27 @@ python check.py --stage batch        # 打乱顺序 / 重复图片
 | `helpers.py`, `check.py`, `run.py`, `runtime.py`, `preprocess_image.py`, `transformer_steps.py` | 课程提供，未修改 |
 | `weights/`, `assets/` | 课程提供的权重与参考数据，**不提交到 GitHub** |
 
-## 5. 提交到 GitHub
+## 5. GitHub 仓库
+
+**仓库地址**：https://github.com/Chen-zzz123/Project1-NumPy-ImageEncoder（public，默认分支 `main`）
+报告封面、报告首页、LaTeX 版与 Overleaf 模板版的 GitHub 一栏均已填入该链接。
+
+如需在另一台机器上从零重建仓库：
 
 ```bash
-git init
+git init -b main
 git add .gitignore README.md README-course.md image_encoder.py \
         helpers.py check.py run.py runtime.py preprocess_image.py \
         transformer_steps.py requirements.txt config.json \
         PPT-CODE-MAP.txt SOURCE-MANIFEST.json report/
 git commit -m "Project 1: NumPy implementation of OpenCLIP ViT-B/32 image encoder"
-
-# 方式 A：已登录 GitHub CLI 时，一条命令建仓并推送
 gh repo create Project1-NumPy-ImageEncoder --public --source=. --remote=origin --push
-
-# 方式 B：先在网页建空仓库，再手动关联
-git remote add origin <你的仓库地址>
-git branch -M main
-git push -u origin main
 ```
 
-推送成功后，把仓库链接填进报告封面与 Overleaf 版 `report/overleaf/main.tex` 的
-`GitHub: <在此填入仓库链接>` 处。
-
-`.gitignore` 已排除大文件：`weights/image_encoder.npz`、`assets/reference_outputs.npz`、
-示例图片、`output_tokens.npz`、`__pycache__`。
+`.gitignore` 已排除课程大附件：`assets/`、`weights/`、`lecture-demos/`、`practice/`、
+所有 `.npz`、`output_tokens.npz`、`__pycache__`。
 **注意**：仓库里不含权重文件，别人复现时需要从课程附件自行放入 `weights/`
-和 `assets/`（README 第 1 节已写明）。把仓库链接填进报告首页的 "GitHub" 一行。
+和 `assets/`（README 第 1 节已写明）。
 
 ## 6. 报告与声明
 
