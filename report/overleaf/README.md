@@ -10,11 +10,11 @@
 3. Menu → **Compiler 选 XeLaTeX**（模板用 `xeCJK` + `Noto Serif CJK SC`，Overleaf 自带该字体）。
 4. 点 Recompile，下载生成的 PDF。
 
-## 提交前需要你改的两处
+## 封面信息（已填好，提交前请核对）
 
-- 封面 `学号`、`提交时间`：我没有这些信息，留空了，请填上。
-- 封面 `GitHub` 一栏已填入 https://github.com/Chen-zzz123/Project1-NumPy-ImageEncoder，如换了仓库请同步修改。
-- 指导教师一栏沿用模板原值「舒婷」，如与实际情况不符请自行修改。
+- `报告人`：陈思翰；`学号`：2025681073；`实验时间` / `提交时间`：2026-11-22。
+- `GitHub`：https://github.com/Chen-zzz123/Project1-NumPy-ImageEncoder，如换了仓库请同步修改。
+- ⚠️ `指导教师` 一栏沿用模板原值「舒婷」，**不确定是否与本课程实际任课教师一致，请务必核对并修改**。
 
 ## 页数说明（重要）
 
