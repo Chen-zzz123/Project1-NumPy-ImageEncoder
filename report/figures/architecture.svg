@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 660" width="920" height="660" font-family="Microsoft YaHei, PingFang SC, Segoe UI, sans-serif">
+  <rect x="0" y="0" width="920" height="660" fill="#ffffff"/>
+  <text x="40" y="42" font-size="22" font-weight="600" fill="#1a2340">OpenCLIP ViT-B/32 图像编码器 · NumPy 前向计算</text>
+  <text x="40" y="66" font-size="13" fill="#6b7280">纯 NumPy 实现，无 PyTorch / 无训练 / 无网络；152 个已训练权重张量由课程提供</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1 L8 5 L2 9" fill="none" stroke="#9aa3b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="104" font-size="15" font-weight="600" fill="#334155">整体数据流</text>
+
+  <g>
+    <rect x="40" y="120" width="150" height="66" rx="10" fill="#e6f1fb" stroke="#185fa5" stroke-width="1"/>
+    <text x="115" y="146" text-anchor="middle" font-size="14" font-weight="600" fill="#0c447c">输入图像</text>
+    <text x="115" y="168" text-anchor="middle" font-size="12" fill="#185fa5">[B, 3, 224, 224]</text>
+  </g>
+  <line x1="192" y1="153" x2="228" y2="153" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <g>
+    <rect x="232" y="120" width="170" height="66" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="1"/>
+    <text x="317" y="144" text-anchor="middle" font-size="14" font-weight="600" fill="#085041">切图块 patchify</text>
+    <text x="317" y="163" text-anchor="middle" font-size="12" fill="#0f6e56">[B, 49, 3072]</text>
+    <text x="317" y="179" text-anchor="middle" font-size="11" fill="#0f6e56">TODO-01</text>
+  </g>
+  <line x1="404" y1="153" x2="440" y2="153" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <g>
+    <rect x="444" y="120" width="170" height="66" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="1"/>
+    <text x="529" y="144" text-anchor="middle" font-size="14" font-weight="600" fill="#085041">嵌入 embed</text>
+    <text x="529" y="163" text-anchor="middle" font-size="12" fill="#0f6e56">[B, 50, 768]</text>
+    <text x="529" y="179" text-anchor="middle" font-size="11" fill="#0f6e56">TODO-05 · CLS + 位置编码</text>
+  </g>
+  <line x1="616" y1="153" x2="652" y2="153" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <g>
+    <rect x="656" y="120" width="224" height="66" rx="10" fill="#eeedfe" stroke="#534ab7" stroke-width="1"/>
+    <text x="768" y="144" text-anchor="middle" font-size="14" font-weight="600" fill="#3c3489">12 × Transformer 块</text>
+    <text x="768" y="163" text-anchor="middle" font-size="12" fill="#534ab7">[B, 50, 768] 形状不变</text>
+    <text x="768" y="179" text-anchor="middle" font-size="11" fill="#534ab7">TODO-02 / 03 / 04</text>
+  </g>
+
+  <path d="M768 188 L768 216 L470 216 L470 240" fill="none" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M40 188 L40 216 L300 216" fill="none" stroke="#9aa3b2" stroke-width="1.6"/>
+  <text x="42" y="234" font-size="11" fill="#6b7280">左侧：原始 x 绕过 Norm 直接参与残差相加</text>
+
+  <g>
+    <rect x="300" y="244" width="340" height="62" rx="10" fill="#faece7" stroke="#993c1d" stroke-width="1"/>
+    <text x="470" y="268" text-anchor="middle" font-size="14" font-weight="600" fill="#712b13">CLS 选择 → 后置 Norm → 投影</text>
+    <text x="470" y="290" text-anchor="middle" font-size="12" fill="#993c1d">TODO-06 · [B,768] → [B,512]</text>
+  </g>
+  <line x1="642" y1="275" x2="678" y2="275" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+  <g>
+    <rect x="682" y="244" width="198" height="62" rx="10" fill="#faeeda" stroke="#854f0b" stroke-width="1"/>
+    <text x="781" y="268" text-anchor="middle" font-size="14" font-weight="600" fill="#633806">单位长度归一化</text>
+    <text x="781" y="290" text-anchor="middle" font-size="12" fill="#854f0b">输出 token [B, 512]</text>
+  </g>
+
+  <line x1="40" y1="332" x2="880" y2="332" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="40" y="360" font-size="15" font-weight="600" fill="#334155">单个 Transformer 块内部（重复 12 次）</text>
+
+  <g>
+    <rect x="40" y="378" width="840" height="240" rx="14" fill="#f8f9fc" stroke="#c9cfe0" stroke-width="1"/>
+    <text x="60" y="404" font-size="13" font-weight="600" fill="#534ab7">x : [B, 50, 768]</text>
+
+    <rect x="60" y="420" width="120" height="48" rx="8" fill="#eeedfe" stroke="#534ab7"/>
+    <text x="120" y="449" text-anchor="middle" font-size="13" fill="#3c3489">LayerNorm 1</text>
+
+    <rect x="210" y="420" width="150" height="48" rx="8" fill="#e6f1fb" stroke="#185fa5"/>
+    <text x="285" y="442" text-anchor="middle" font-size="13" fill="#0c447c">多头注意力 MHA</text>
+    <text x="285" y="459" text-anchor="middle" font-size="11" fill="#185fa5">12 heads × 64 dim</text>
+
+    <rect x="390" y="420" width="120" height="48" rx="8" fill="#e1f5ee" stroke="#0f6e56"/>
+    <text x="450" y="449" text-anchor="middle" font-size="13" fill="#085041">残差 +</text>
+
+    <rect x="540" y="420" width="120" height="48" rx="8" fill="#eeedfe" stroke="#534ab7"/>
+    <text x="600" y="449" text-anchor="middle" font-size="13" fill="#3c3489">LayerNorm 2</text>
+
+    <rect x="690" y="420" width="160" height="48" rx="8" fill="#faece7" stroke="#993c1d"/>
+    <text x="770" y="442" text-anchor="middle" font-size="13" fill="#712b13">MLP + GELU</text>
+    <text x="770" y="459" text-anchor="middle" font-size="11" fill="#993c1d">768 → 3072 → 768</text>
+
+    <line x1="182" y1="444" x2="206" y2="444" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="362" y1="444" x2="386" y2="444" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="512" y1="444" x2="536" y2="444" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="662" y1="444" x2="686" y2="444" stroke="#9aa3b2" stroke-width="1.6" marker-end="url(#ar)"/>
+
+    <path d="M60 486 L60 520 L450 520 L450 472" fill="none" stroke="#d85a30" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+    <text x="70" y="538" font-size="12" fill="#d85a30">残差捷径 ①：原始 x 直接加到注意力输出上</text>
+
+    <path d="M510 486 L510 560 L770 560 L770 472" fill="none" stroke="#d85a30" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+    <text x="520" y="578" font-size="12" fill="#d85a30">残差捷径 ②：residual 直接加到 MLP 输出上</text>
+
+    <rect x="60" y="540" width="290" height="58" rx="8" fill="#ffffff" stroke="#c9cfe0"/>
+    <text x="76" y="562" font-size="12" fill="#334155">scores = Q·Kᵀ / √64  [B,12,50,50]</text>
+    <text x="76" y="582" font-size="12" fill="#334155">context = softmax(scores)·V  [B,12,50,64]</text>
+  </g>
+
+  <text x="40" y="640" font-size="11" fill="#9aa3b2">图中 B = 批大小，N = 50 个 token（1 CLS + 49 图块），D = 768，H = 12 个注意力头</text>
+</svg>

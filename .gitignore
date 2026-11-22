@@ -1,0 +1,28 @@
+# Course-supplied large files: do NOT commit (see README section 5)
+weights/*.npz
+assets/reference_outputs.npz
+assets/images/*.jpg
+assets/images/*.png
+assets/images/*.jpeg
+
+# Generated outputs
+output_tokens.npz
+my_tokens.npz
+*.npz
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# LaTeX build artifacts (if compiling report.tex locally)
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
+report/*.xdv

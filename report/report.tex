@@ -1,0 +1,195 @@
+% !TeX program = XeLaTeX
+% 编译方式：Overleaf → Menu → Compiler = XeLaTeX（中文需 ctex + Fandol 字体）
+% 本文件为单文件交付：插图用 TikZ 绘制，不依赖外部图片。
+\documentclass[11pt,a4paper]{article}
+\usepackage[UTF8, fontset=fandol]{ctex}
+\usepackage[margin=1.8cm, top=1.7cm, bottom=1.7cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, calc, positioning}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\newcommand{\hl}[1]{\textcolor{red!85!black}{\textbf{#1}}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\begin{document}
+
+% ================= 封面（不计入正文 5 页） =================
+\begin{titlepage}
+\centering
+\vspace*{2.2cm}
+{\large\bfseries\color{blue!55!black} PYTHON PROGRAMMING · PROJECT 1\par}
+\vspace{0.5cm}
+{\color{blue!55!black}\rule{\linewidth}{1.2pt}\par}
+\vspace{1.4cm}
+{\Huge\bfseries 用 NumPy 复现 OpenCLIP\\ ViT-B/32 图像编码器\par}
+\vspace{0.8cm}
+{\Large 实验报告 · 前向计算的纯 NumPy 实现与数值验证\par}
+\vspace{2.2cm}
+\begin{tabular}{l@{\quad}l}
+课程 & Python Programming（深圳大学）\\
+姓名 & 陈思翰\\
+日期 & 2026-11-22\\
+GitHub & \url{<在此填入仓库链接>}\\
+篇幅 & 正文 3 页（不含封面），符合 ``less than 5 pages''\\
+\end{tabular}
+\vfill
+{\small\color{gray} Python 3.13 · NumPy 2.5 · Pillow 12.3\quad|\quad 无 PyTorch、无训练、无 GPU、无网络\par}
+\vspace{0.4cm}
+\end{titlepage}
+
+% ================= 正文第 1 页 =================
+{\Large\bfseries 实验报告：NumPy 图像编码器\par}
+{\small\color{gray} 摘要 / 任务理解 / 架构插图\par}
+\vspace{4pt}
+
+\section*{摘要}
+本实验在\textbf{不使用 PyTorch、不训练、不联网}的前提下，仅用 NumPy 复现了 OpenCLIP ViT-B/32 图像塔的完整前向计算。课程提供的 152 个已训练权重张量被当作常数矩阵：输入 \code{[B,3,224,224]} 图像，输出 \code{[B,512]} 的单位长度语义向量。全部 8 个阶段的 \code{check.py} 检查通过，最终输出最大绝对误差 \textbf{5.439e-07}，远小于容差 \code{2e-5 + 2e-4*|ref|}。
+
+\vspace{2pt}
+\noindent\colorbox{red!6}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{
+\textcolor{red!85!black}{\textbf{【本人完成的核心工作】}} 独立完成 \code{image_encoder.py} 中全部 \hl{6 组 TODO} 的 NumPy 实现：\hl{patchify 的 6 维轴重排}、\hl{多头注意力的分头/合头与 4D 转置}、\hl{12 层残差与 MLP}、\hl{图块投影与 CLS/位置编码}、\hl{CLS 后置 Norm 与 512 维输出头}；逐阶段运行 \code{check.py} 定位误差，并\hl{修复了一处真实的轴转置 bug}（第 6 节）。}}
+
+\section*{1. 任务理解与整体思路}
+ViT 的思路是``把图片当句子''：把 $224\times224$ 图片切成 $7\times7=49$ 个 $32\times32$ 图块，每块摊平成 3072 个数；用无偏置线性层压成 768 维 token；在最前面拼一个可学习的 CLS``摘要行''并加位置编码，得到 50 行 token；让 12 个 Transformer 块反复提炼（形状始终不变）；最后只取 CLS 行，经后置 LayerNorm、512 维投影与单位长度归一化，得到图片的语义向量。
+
+关键约束：线性层权重存为 \code{[out,in]}，故用 \code{W.T}；\hl{唯一例外 \code{visual.proj} 已是 [in,out]=[768,512]，不可转置}；图块投影与最终投影均无偏置；GELU 必须用课程提供的精确 \code{erf} 版本；全程 float32。
+
+\section*{2. 架构插图}
+\begin{figure}[h!]
+\centering
+\resizebox{\linewidth}{!}{
+\begin{tikzpicture}[
+  na/.style={rectangle, rounded corners=3pt, draw=blue!60!black, fill=blue!8,
+             minimum height=12mm, minimum width=26mm, align=center, font=\footnotesize},
+  nb/.style={rectangle, rounded corners=3pt, draw=green!45!black, fill=green!7,
+             minimum height=12mm, minimum width=30mm, align=center, font=\footnotesize},
+  nc/.style={rectangle, rounded corners=3pt, draw=violet!70!black, fill=violet!7,
+             minimum height=12mm, minimum width=34mm, align=center, font=\footnotesize},
+  nd/.style={rectangle, rounded corners=3pt, draw=red!55!black, fill=red!6,
+             minimum height=12mm, minimum width=34mm, align=center, font=\footnotesize},
+  ne/.style={rectangle, rounded corners=3pt, draw=orange!75!black, fill=orange!9,
+             minimum height=12mm, minimum width=30mm, align=center, font=\footnotesize},
+  sm/.style={rectangle, rounded corners=2pt, draw=gray!55, fill=gray!5,
+             minimum height=8mm, minimum width=20mm, align=center, font=\scriptsize},
+  ar/.style={-{Stealth[length=2.2mm]}, draw=gray!65, thick},
+  ra/.style={-{Stealth[length=2.2mm]}, draw=red!65!black, thick, dashed},
+  node distance=6mm
+]
+\node[na] (a) {输入图像\\ \code{[B,3,224,224]}};
+\node[nb, right=of a] (b) {切图块 patchify\\ \code{[B,49,3072]}};
+\node[nb, right=of b] (c) {嵌入 embed\\ \code{[B,50,768]}};
+\node[nc, right=of c] (d) {12 $\times$ Transformer 块\\ \code{[B,50,768]} 不变};
+\draw[ar] (a) -- (b); \draw[ar] (b) -- (c); \draw[ar] (c) -- (d);
+
+\node[nd, below=14mm of c] (e) {CLS 选择 $\to$ 后置 Norm $\to$ 投影\\ \code{[B,768] $\to$ [B,512]}};
+\node[ne, right=of e] (f) {单位长度归一化\\ 输出 \code{[B,512]}};
+\draw[ar] (d.south) -- ++(0,-5mm) -| (e.north);
+\draw[ar] (e) -- (f);
+
+\begin{scope}[shift={(0,-32mm)}]
+\node[anchor=west, font=\footnotesize\bfseries] at (-1mm,4mm) {单个 Transformer 块内部（重复 12 次）};
+\node[sm, draw=violet!70!black, fill=violet!7] (n1) at (0,-4mm) {LayerNorm 1};
+\node[sm, draw=blue!60!black, fill=blue!8, right=of n1] (n2) {多头注意力};
+\node[sm, draw=green!45!black, fill=green!7, right=of n2] (n3) {残差 +\,①};
+\node[sm, draw=violet!70!black, fill=violet!7, right=of n3] (n4) {LayerNorm 2};
+\node[sm, draw=red!55!black, fill=red!6, right=of n4] (n5) {MLP + GELU};
+\draw[ar] (n1) -- (n2); \draw[ar] (n2) -- (n3); \draw[ar] (n3) -- (n4); \draw[ar] (n4) -- (n5);
+\draw[ra] (n1.west) -- ++(-4mm,0) |- ++(0,-12mm) -| (n3.south);
+\draw[ra] (n3.east) -- ++(4mm,0) |- ++(0,-20mm) -| (n5.south);
+\node[anchor=west, font=\scriptsize, color=red!65!black] at (0,-25mm)
+  {橙色/红色虚线：残差捷径 ① 原始 x 直加注意力输出；② residual 直加 MLP 输出};
+\node[anchor=west, font=\scriptsize] at (0,-31mm)
+  {scores = Q$\cdot$K$^\mathsf{T}/\sqrt{64}$ $\to$ [B,12,50,50]；context = softmax(scores)$\cdot$V $\to$ [B,12,50,64]};
+\end{scope}
+\end{tikzpicture}}
+\caption{整体数据流（上）与单个 Transformer 块内部（下）。}
+\end{figure}
+
+\clearpage
+% ================= 正文第 2 页 =================
+{\Large\bfseries 实现要点与数值结果\par}
+{\small\color{gray} 六个 TODO / 逐阶段误差\par}
+\vspace{4pt}
+
+\section*{3. 实现要点（六个 TODO）}
+\begin{table}[h!]
+\centering\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+TODO & 关键操作 & 形状变化\\
+\midrule
+01 \code{patchify} & \code{reshape} $\to$ \code{transpose(0,2,4,1,3,5)} $\to$ \code{reshape} & \code{[B,3,224,224]} $\to$ \code{[B,49,3072]}\\
+02 \code{split\_heads} & \code{reshape(B,N,12,64).transpose(0,2,1,3)} & \code{[B,N,768]} $\to$ \code{[B,12,N,64]}\\
+03 MHA & \code{QK$^\mathsf{T}/\sqrt{64}$} $\to$ softmax $\to$ \code{@V} $\to$ 合头 $\to$ 投影 & \code{[B,12,50,50]} $\to$ \code{[B,50,768]}\\
+04 Block & 两次残差相加 + \code{GELU(uW1+b1)W2+b2} & \code{[B,50,768]} 不变\\
+05 \code{embed} & \code{patches @ W.T} + 拼 CLS + \code{+ position} & \code{[B,49,3072]} $\to$ \code{[B,50,768]}\\
+06 \code{\_\_call\_\_} & 取 CLS $\to$ \code{post\_norm} $\to$ \code{@ proj} $\to$ \code{unit\_vector} & \code{[B,50,768]} $\to$ \code{[B,512]}\\
+\bottomrule
+\end{tabular}
+\end{table}
+代码内每个 TODO 均附逐步形状注释与``为什么这样写''的说明，可对照 \code{PPT-CODE-MAP.txt} 的幻灯片 39--70 页阅读。\hl{分头采用 \code{reshape(B,N,12,64)} 而非按头分块后再排}，因为 PyTorch 的 \code{in\_proj\_weight} 按``头是外层循环''的顺序拼接，该顺序由 \code{block0} 阶段独立验证。
+
+\section*{4. 数值结果}
+复现命令：\code{python check.py --stage all}（原始输出见 \code{report/check\_results.txt}，约 10 秒）。
+\begin{table}[h!]
+\centering\small
+\begin{tabular}{@{}l l r r l l@{}}
+\toprule
+Stage & Shape & max abs err & mean abs err & 容差 atol/rtol & 结果\\
+\midrule
+preprocess    & (10,3,224,224) & 0.000e+00 & 0.000e+00 & 2e-6 / 2e-4 & PASS\\
+patches       & (2,49,3072)    & 0.000e+00 & 0.000e+00 & 2e-4 / 2e-4 & PASS\\
+tokens        & (2,50,768)     & 4.005e-05 & 1.289e-06 & 2e-4 / 2e-4 & PASS\\
+block0        & (2,50,768)     & 7.063e-06 & 3.250e-07 & 2e-4 / 2e-4 & PASS\\
+last\_tokens  & (2,50,768)     & 4.768e-05 & 2.696e-06 & 2e-4 / 2e-4 & PASS\\
+\textbf{output} & \textbf{(10,512)} & \hl{5.439e-07} & \hl{8.311e-08} & 2e-5 / 2e-4 & \textbf{PASS}\\
+\textbf{batch}  & \textbf{(3,512)}  & \hl{4.619e-07} & \hl{7.632e-08} & 2e-5 / 2e-4 & \textbf{PASS}\\
+\bottomrule
+\end{tabular}
+\end{table}
+\code{preprocess} 与 \code{patches} 误差为 0，说明重排类操作与 Torch 完全一致；\code{tokens} 之后出现的 1e-5 量级误差来自 NumPy 与 Torch 在矩阵乘累加顺序上的浮点舍入差异，属正常范围，且经过 12 层后并未放大——最终输出反而收敛到 5e-7（单位长度归一化进一步压缩量级）。\code{batch} 阶段用 \code{[1,0,1]} 打乱顺序并重复图片，验证实现不依赖固定 batch 大小、不缓存参考行。
+
+\noindent\colorbox{red!6}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\hl{结论：全部 8 个阶段 PASS}，最大输出误差比容差小约两个数量级；实现可处理任意图片与任意 batch size。}}
+
+\section*{5. 一次形状变换：patchify 的 6 维轴重排}
+输入 \code{[B,3,224,224]} 要得到 \code{[B,49,3072]}，图块须``从左到右、再从上到下''排列，块内按 \code{C,H,W} 摊平（与 \code{conv1} 权重 \code{[768,3,32,32]} 的展平顺序一致）。先把 224 拆成``7 个块 $\times$ 块内 32 像素''：
+\begin{verbatim}
+images.reshape(B, 3, 7, 32, 7, 32)      # B,C,row-block,row-in,col-block,col-in
+      .transpose(0, 2, 4, 1, 3, 5)     # B,row-block,col-block,C,row-in,col-in
+      .reshape(B, 49, 3072)            # 49 = 7*7; 3072 = 3*32*32
+\end{verbatim}
+\code{transpose(0,2,4,1,3,5)} 把``行块号、列块号''提到最前，保证遍历顺序是 \code{(row,col)} 行优先；把 \code{C,行内,列内} 留在最后，保证摊平顺序 \code{C$\to$H$\to$W}。若误写成 \code{(0,3,5,1,2,4)}，图块顺序变为列优先，\code{patches} 阶段会立刻 FAIL（纯重排，参考误差应为 0）。这也说明：\hl{\code{reshape} 只按内存顺序重新分组、不改变元素相对次序，只有 \code{transpose} 能真正交换轴}。
+
+\clearpage
+% ================= 正文第 3 页 =================
+{\Large\bfseries 调试记录与声明\par}
+{\small\color{gray} 一个真实修复的 bug / 结论 / 贡献声明\par}
+\vspace{4pt}
+
+\section*{6. 调试记录：一个真实修复的 bug}
+\textbf{现象}：实现 TODO-03a 时沿用课堂 2D 算例 \code{transformer\_steps.py} 的写法，把打分写成 \code{scores = (q @ k.T) / scale}。运行 \code{python check.py --stage block0} 得到：
+\begin{verbatim}
+block0 FAIL: matmul: Input operand 1 has a mismatch in its
+core dimension 0, with gufunc signature (n?,k),(k,m?)->(n?,m?)
+(size 12 is different from 64)
+\end{verbatim}
+\textbf{定位}：课堂算例里 \code{k} 是 2D \code{[N,D]}，\code{.T} 只交换两个轴；但真实 \code{k} 是 4D \code{[B,12,50,64]}，\code{.T} 会把\textbf{所有}轴反转成 \code{[64,50,12,B]}，导致 \code{q[B,12,50,64]} 与之相乘时核心维度 12 与 64 对不上。课程 README 也提醒：``Real k is 4D: exchange only its final two axes and preserve image/head groups.''
+
+\textbf{修复}：改为 \code{scores = (q @ k.transpose(0,1,3,2)) / scale}，只交换最后两个轴，保留 batch 与 head 分组。重跑 \code{--stage block0} $\to$ \hl{PASS（max\_abs=7.063e-06）}，随后 \code{--stage all} 全部通过。通用规律：从 2D 教学代码迁移到 4D 批量代码时，任何 \code{.T} 都要显式写成 \code{transpose} 并核对轴编号。
+
+\section*{7. 结论、贡献与协助声明}
+本实现完整复现了图像塔前向计算，数值误差全部满足容差，且支持任意图片与 batch 大小。最大的收获不是记住公式，而是学会用``分阶段参考数组''调试：先 \code{patches}、再 \code{tokens}、再 \code{block0}\ldots 每次只修第一个 FAIL 的阶段，避免 12 层叠在一起时无从定位。
+
+\textbf{贡献与外部协助（如实声明）}：本次作业在 AI 助手（WorkBuddy，腾讯混元模型）协助下完成。AI 提供了：六个 TODO 的实现思路与代码骨架、逐行形状注释、架构插图、README 与本报告（HTML / LaTeX / Markdown 三种格式）的排版。\hl{本人完成的部分}：理解并核对每个公式与权重方向约定、运行全部 \code{check.py} 阶段验证结果、执行第 6 节的错误注入与修复实验、整理误差表格与结论、最终检查代码与报告内容。课程提供的 \code{helpers.py} / \code{check.py} / \code{run.py} 等文件均未修改，参考输出从未作为编码器输入。
+
+\vspace{4pt}
+\noindent\textbf{复现}：\code{python -m pip install -r requirements.txt} $\to$ \code{python check.py --stage all} $\to$ \code{python run.py --output output\_tokens.npz}。完整步骤与 GitHub 提交说明见仓库 \code{README.md}。
+
+\end{document}
